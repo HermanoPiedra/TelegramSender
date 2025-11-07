@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # ✅ get full history so rebase works
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,13 +33,21 @@ jobs:
         run: python main.py
 
       - name: Commit memory file
+        shell: bash
         run: |
           if [[ -n "$(git status --porcelain seen_listings.txt)" ]]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
             git add seen_listings.txt
-            git commit -m "Update seen_listings.txt"
-            git push
-          else:
-            echo "No changes"
+            git commit -m "Update seen_listings.txt [skip ci]" || true
+
+            # ✅ make sure we include any new commits made by you
+            git fetch origin
+            git pull --rebase origin "${{ github.ref_name }}" || true
+
+            # ✅ push to the same branch the workflow ran on
+            git push origin HEAD:"${{ github.ref_name }}"
+          else
+            echo "No changes to seen_listings.txt"
           fi

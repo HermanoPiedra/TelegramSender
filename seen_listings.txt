@@ -1,5 +1,5 @@
-1|https://www.pararius.com/apartment-for-rent/rotterdam/016fe635/ruigenhoek
 1|Pararius|https://www.pararius.com/apartment-for-rent/rotterdam/0a9a9a95/lepelaarsingel
 1|Pararius|https://www.pararius.com/apartment-for-rent/rotterdam/3d959dea/lepelaarsingel
-1|Pararius|https://www.pararius.com/apartment-for-rent/rotterdam/016fe635/ruigenhoek
+1|https://www.pararius.com/apartment-for-rent/rotterdam/016fe635/ruigenhoek
 1|Pararius|https://www.pararius.com/studio-for-rent/rotterdam/e5a3e999/voorschoterstraat
+1|Pararius|https://www.pararius.com/apartment-for-rent/rotterdam/016fe635/ruigenhoek

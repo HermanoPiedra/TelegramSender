@@ -138,11 +138,6 @@ def _parse_price_from_text(txt: str) -> int | None:
         return None
 
 def fetch_funda_listings():
-    """
-    Scrape Funda rentals for Rotterdam.
-    We collect listing links from the search page, then visit each detail page
-    to read price, title, furnished keywords, and bedrooms from the full text.
-    """
     base = "https://www.funda.nl"
     list_url = f"{base}/en/huur/rotterdam/"
     headers = {"User-Agent": "Mozilla/5.0 (HousingBot)"}
@@ -150,18 +145,15 @@ def fetch_funda_listings():
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
 
-    # Collect detail page links (be generous with selectors to survive UI changes)
     links = []
     for a in soup.select('a[href^="/en/huur/rotterdam/"]'):
         href = a.get("href") or ""
-        # Heuristic: keep only object detail pages (contain address-slug and id)
         if "/appartement-" in href or "/huis-" in href or "/kamer-" in href or "/studio-" in href:
             full = urljoin(base, href.split("?")[0])
             if full not in links:
                 links.append(full)
 
     results = []
-    # Visit up to ~20 detail pages to avoid being noisy
     for detail_url in links[:20]:
         try:
             time.sleep(1.0)  # be polite
@@ -170,13 +162,10 @@ def fetch_funda_listings():
             page = BeautifulSoup(r.text, "html.parser")
             text = page.get_text(" ", strip=True)
 
-            # Title
             title_el = page.find(["h1", "h2"])
             title = title_el.get_text(strip=True) if title_el else "Funda listing"
 
-            # Price (search whole page text)
             price_num = _parse_price_from_text(text) or 10**9
-
             furnished = is_furnished(text)
             bedrooms = infer_bedrooms(title, text)
 
@@ -194,6 +183,58 @@ def fetch_funda_listings():
 
     return results
 
+def fetch_huurwoningen_listings():
+    base = "https://www.huurwoningen.nl"
+    list_url = f"{base}/in/rotterdam/"
+    headers = {"User-Agent": "Mozilla/5.0 (HousingBot)"}
+
+    try:
+        resp = requests.get(list_url, headers=headers, timeout=25)
+        resp.raise_for_status()
+    except Exception as e:
+        print("Huurwoningen list error:", e)
+        return []
+
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    links = []
+    for a in soup.select('a[href^="/huren/rotterdam/"]'):
+        href = a.get("href") or ""
+        if len(href) > 20:
+            full = urljoin(base, href.split("?")[0])
+            if full not in links:
+                links.append(full)
+
+    results = []
+    for detail_url in links[:20]:
+        try:
+            time.sleep(1.0)
+            r = requests.get(detail_url, headers=headers, timeout=25)
+            r.raise_for_status()
+            page = BeautifulSoup(r.text, "html.parser")
+            text = page.get_text(" ", strip=True)
+
+            title_el = page.find(["h1", "h2"])
+            title = title_el.get_text(strip=True) if title_el else "Huurwoningen listing"
+
+            price_num = _parse_price_from_text(text) or 10**9
+            furnished = is_furnished(text)
+            bedrooms = infer_bedrooms(title, text)
+
+            results.append({
+                "title": title,
+                "price": price_num,
+                "url": detail_url,
+                "furnished": furnished,
+                "bedrooms": bedrooms,
+                "source": "Huurwoningen",
+            })
+        except Exception as e:
+            print(f"[Huurwoningen] Skip {detail_url}: {e}")
+            continue
+
+    return results
+
 def fetch_all_listings():
     items = []
     try:
@@ -204,6 +245,10 @@ def fetch_all_listings():
         items += fetch_funda_listings()
     except Exception as e:
         print("Funda error:", e)
+    try:
+        items += fetch_huurwoningen_listings()
+    except Exception as e:
+        print("Huurwoningen error:", e)
     return items
 
 # =========================
@@ -248,8 +293,7 @@ def notify_group(matches, people: int):
 # MAIN
 # =========================
 def main():
-    listings = fetch_all_listings()  # Pararius + Funda
-
+    listings = fetch_all_listings()
     for people in PERSON_GROUPS:
         filtered = filter_for_people(listings, people)
         new_only = remove_seen(filtered, people)
@@ -257,3 +301,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
